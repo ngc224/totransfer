@@ -63,6 +63,10 @@ class UserConfig():
         keyring.set_password(sys_config.application_name, 'access_key', raw_input('Access key: '))
         return self
 
+    @staticmethod
+    def getAccessKey():
+        return keyring.get_password(sys_config.application_name, 'access_key')
+
     def setDefaultFromLang(self):
         print(textui.colored.green('Set totranslator default post tags / Not enter if you do not set'))
         self.user_config.set(sys_config.application_name, 'From', raw_input('From lang: '))
