@@ -8,20 +8,20 @@ import config as sys_config
 
 class ToTranslator():
     def __init__(self):
-        self.response = None
+        self._response = None
 
-    def request(self, access_key, text, lang_to, lang_from):
-        self.response = requests.post(
+    def request(self, access_key, text, lang_from, lang_to):
+        self._response = requests.post(
             sys_config.api_request_url,
             params={'Text': "'%s'" % text, 'To': "'%s'" % lang_to, 'From': "'%s'" % lang_from},
             auth=(access_key, access_key)
         )
-        if not self.isStatusCode(self.response.status_code):
+        if not self.isStatusCode(self._response.status_code):
             raise
         return self
 
     def parse(self):
-        for e in feedparser.parse(self.response.text)['entries']:
+        for e in feedparser.parse(self._response.text)['entries']:
             return e['m_properties_detail']['value']
 
     @staticmethod
@@ -59,134 +59,91 @@ class UserConfig():
             return self.user_config.get(sys_config.application_name, option)
 
     def setAccessKey(self):
-        print(textui.colored.green('Get Evernote developer token --> ' + sys_config.accesskey_get_url))
-        keyring.set_password(sys_config.application_name, 'access_key', raw_input('Access key: '))
-        return self
+        print(textui.colored.green('Get Evernote DeveloperToken URL --> '))
+        while True:
+            access_key = raw_input('Access key: ')
+            if self.isAccessKey(access_key):
+                keyring.set_password(sys_config.application_name, 'access_key', access_key)
+                return self
 
     @staticmethod
     def getAccessKey():
         return keyring.get_password(sys_config.application_name, 'access_key')
 
-    def setDefaultFromLang(self):
+    @staticmethod
+    def isAccessKey(access_key):
+        try:
+            ToTranslator().request(access_key, 'test', 'en', 'ja')
+        except:
+            print(textui.colored.red('Token can not be used'))
+            return False
+        return True
+
+    def setFromLang(self):
         print(textui.colored.green('Set totranslator default post tags / Not enter if you do not set'))
-        self.user_config.set(sys_config.application_name, 'From', raw_input('From lang: '))
+        self.user_config.set(sys_config.application_name, 'fromlang', raw_input('From lang: '))
         return self
 
-    def setDefaultToLang(self):
+    def setToLang(self):
         print(textui.colored.green('Set totranslator default post notebook / Not enter if you do not set'))
-        self.user_config.set(sys_config.application_name, 'To', raw_input('To lang: '))
+        self.user_config.set(sys_config.application_name, 'tolang', raw_input('To lang: '))
         return self
 
     def save(self):
         self.user_config.write(open(self.filepath, 'w'))
 
 
-
-
-
-
-
-
-class Util():
-    @staticmethod
-    def isBinary(data):
-        for encoding in ['utf-8', 'shift-jis', 'euc-jp', 'iso2022-jp']:
-            try:
-                data = data.decode(encoding)
-                break
-            except:
-                pass
-        if isinstance(data, unicode):
-            return False
-        return True
-
-
 def main():
     parser = argparse.ArgumentParser(description=sys_config.application_name + ' version ' + sys_config.version)
     parser.add_argument('file', nargs='?', action='store', help='file to send to evernote')
-    parser.add_argument('--from', type=str, help='note attachment file name')
-    parser.add_argument('--to', type=str, help='note title (omitted, the time is inputted automatically.)')
+    parser.add_argument('-f', '--fromlang', type=str, help='note attachment file name')
+    parser.add_argument('-t', '--tolang', type=str, help='note title (omitted, the time is inputted automatically.)')
+    parser.add_argument('-l', '--list', action='store_true', help='note attachment file name')
     parser.add_argument('--config', action='store_true', help='set user config')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + sys_config.version)
 
-
-
-
-
-
-
-
-
-
-    # aaa = ToTranslator().request('nIPCSzvQVju2gS1XemNy1FjGuIBxq903bN1YWeXd5jw', '埼玉県', 'en', 'ja').parse()
-    #
-    # print aaa
-    #
-    # sys.exit(0)
-
-
-
-
-
-
-
-
-
-
-
-
     args = parser.parse_args()
-    user_config = UserConfig(sys_config.user_filepath)
 
-    # Set config
+    if args.list:
+        for lang in ToTranslator.getLangList():
+            print lang
+        return 0
+
+    user_config = UserConfig(sys_config.filepath_user)
+
     if args.config:
         try:
-            user_config.setAccessKey().setDefaultFromLang().setDefaultFromLang().save()
+            user_config.setAccessKey().setFromLang().setToLang().save()
         except:
             return 1
         return 0
 
-    # File check
-    if not args.file is None:
-        if not os.path.isfile(args.file):
-            print(textui.colored.red('File does not exist ' + args.file))
-            return 1
-        sys.stdin = open(args.file, 'r')
-        if Util.isBinary(open(args.file, 'r').read()):
-            return 1
+    stdin_dafault = sys.stdin
+    sys.stdin = open('/dev/tty', 'rt')
+    if not user_config.isAccessKey(keyring.get_password(sys_config.application_name, 'access_key')):
+        user_config.setAccessKey()
+    sys.stdin = stdin_dafault
 
+    totranslator = ToTranslator()
 
-    # Set lang to
-    if not args.to and user_config.getUserOption('to'):
-        args.to = user_config.getUserOption('to')
-    if not ToTranslator().isLang(args.to):
-        return 1
+    if not args.fromlang and user_config.getUserOption('fromlang'):
+        args.fromlang = user_config.getUserOption('fromlang')
+    if not ToTranslator().isLang(args.fromlang):
+        return "error set from lang"
 
+    if not args.tolang and user_config.getUserOption('tolang'):
+        args.tolang = user_config.getUserOption('tolang')
+    if not ToTranslator().isLang(args.tolang):
+        return "error set to lang"
 
-
-
-
-
-
-
-
-
-
-
-
-
-    # Set text stream
     try:
         for line in iter(sys.stdin.readline, ''):
-            note_content += totranslator.getContentFormat(line)
-            print(textui.colored.green(line.rstrip()))
+            print(textui.colored.green(
+                totranslator.request(UserConfig.getAccessKey(), line, args.fromlang, args.tolang).parse()
+            ))
     except:
-        pass
-    finally:
-        # create note
-        if totranslator.isSetContent(note_content):
-            return totranslator.createNote(note_title, note_content, note_tags, note_bookguid)
-    return 1
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

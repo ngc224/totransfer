@@ -1,13 +1,14 @@
 from setuptools import setup, find_packages
 import sys
+import totranslator.config as config
 
-install_requires = ['clint', 'keyring']
+install_requires = ['clint', 'keyring', 'requests', 'feedparser']
 
 if sys.version_info < (2, 7):
     install_requires.append('argparse')
 
 setup(name='totranslator',
-      version='1.0.0',
+      version=config.version,
       description='Evernote command line tool',
       author='Yoshihiko Nishida',
       author_email='nishida@ngc224.org',
